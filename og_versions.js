@@ -13,7 +13,7 @@ m_aws.config.update({ region: 'us-east-1', logger: process.stdout })
 
 
 m_buckets = {
-    vpcprod_rs: { name: 'com-slicetest-vpcprod-rightscale', prefix: 'override.groovy' } 
+    vpcprod_rs: { name: 'my_s3_bucket', prefix: 'override.groovy' } 
 }
 
 for (var m_bucket_key in m_buckets) {
