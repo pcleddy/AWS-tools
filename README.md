@@ -1,6 +1,6 @@
 # AWS-tools
 
-Misc tools hitting the AWS API using Ruby, Javascript, etc.
+Misc tools hitting the AWS API using Ruby, Javascript, etc. 
 
 ## automated*snapshot.js
 
@@ -43,6 +43,3 @@ Output is via CGI, so can be run on a webserver like Apache.
 ## sg_inspector
 
 Similar to sg_explorer with the exception that the output is to the terminal, not via a CGI gateway.
-
-
-
