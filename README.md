@@ -2,7 +2,7 @@
 
 Misc tools hitting the AWS API using Ruby, Javascript, etc. 
 
-New addition: snapshot subdir has new project using Python against AWS API to do scheduled backups.
+New addition: "snapshots" subdir has new project using Python against AWS API to do scheduled backups.
 
 ## automated*snapshot.js
 
