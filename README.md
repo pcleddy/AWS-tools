@@ -2,6 +2,8 @@
 
 Misc tools hitting the AWS API using Ruby, Javascript, etc. 
 
+New addition: snapshot subdir has new project using Python against AWS API to do scheduled backups.
+
 ## automated*snapshot.js
 
 WARNING: Please be very, very careful using this script, it can remove resources from your environment!
