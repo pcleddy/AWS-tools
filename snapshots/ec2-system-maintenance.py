@@ -16,8 +16,8 @@ else:
     p_env = 'prod-portforward'
 
 p_profiles_defs = [
-    { 'profile_name': 'my-public', 'profile_region': 'us-west-1' },
-    { 'profile_name': 'my-public', 'profile_region': 'us-west-2' },
+    { 'profile_name': 'my-public1', 'profile_region': 'us-west-1' },
+    { 'profile_name': 'my-public2', 'profile_region': 'us-west-2' },
 ]
 
 p_sa_assests_servers = SAAssetsServers(p_env)
