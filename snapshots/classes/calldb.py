@@ -1,10 +1,12 @@
 import pymysql.cursors
-import pprint
 from os.path import expanduser
 import json
 
-m_home = expanduser("~")
+import pprint
 pp = pprint.PrettyPrinter(indent=4)
+
+m_home = expanduser("~")
+
 
 class CallDB():
 

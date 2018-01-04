@@ -1,5 +1,5 @@
-# aws-tools in Python
+# aws-tools
 
-Maintenance tools for AWS using Python SDK
+Maintenance tools for AWS
 
 - Snapshot volumes on fixed schedules, clean up expired snapshots

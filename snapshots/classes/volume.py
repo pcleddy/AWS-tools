@@ -112,7 +112,10 @@ class Volume():
         self.fetch_tags()
         if ( ( 'SnapSchedule' not in self.tags ) or ( self.tags['SnapSchedule'] != self.backup_set['tag'] ) ):
             self.set_tag('SnapSchedule', self.backup_set['tag'])
-            logger.info("SnapSchedule tag changed for {}: {} -> {}".format(self.id, self.tags['SnapSchedule'], self.backup_set['tag']))
+            if 'SnapSchedule' in self.tags:
+                logger.info("SnapSchedule tag changed for {}: {} -> {}".format(self.id, self.tags['SnapSchedule'], self.backup_set['tag']))
+            else:
+                logger.info("SnapSchedule tag added to {}: new tag {}".format(self.id, self.backup_set['tag']))
         m_tags_array = self.get_tags_array()
         if m_dryrun:
             logger.info('Dry run, not taking snapshot')

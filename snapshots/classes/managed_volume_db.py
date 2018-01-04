@@ -10,32 +10,32 @@ class ManagedVolumeDB():
 
     backup_sets = {
         'weekly': {
-            'name': 'weekly', 'tag': 'WEEKLY-KEEP1MONTH',
+            'name': 'weekly', 'tag': 'JPLISSA-WEEKLY-KEEP1MONTH',
             'snapshot frequency': 'every 1 week', 'snapshot frequency in days': 7,
             'snapshots expire': '1 month', 'snapshots expire in days': 31
         },
         'daily': {
-            'name': 'daily', 'tag': 'DAILY-KEEP1WEEK',
+            'name': 'daily', 'tag': 'JPLISSA-DAILY-KEEP1WEEK',
             'snapshot frequency': 'every 1 day', 'snapshot frequency in days': 1,
             'snapshots expire': '1 week', 'snapshots expire in days': 7
         },
         'daily_keep2w': {
-            'name': 'daily2wks', 'tag': 'DAILY-KEEP2WEEKS',
+            'name': 'daily2wks', 'tag': 'JPLISSA-DAILY-KEEP2WEEKS',
             'snapshot frequency': 'every 1 day', 'snapshot frequency in days': 1,
             'snapshots expire': '2 weeks', 'snapshots expire in days': 14
         },
         'daily_keep4w': {
-            'name': 'daily4wks', 'tag': 'DAILY-KEEP4WEEKS',
+            'name': 'daily4wks', 'tag': 'JPLISSA-DAILY-KEEP4WEEKS',
             'snapshot frequency': 'every 1 day', 'snapshot frequency in days': 1,
             'snapshots expire': '4 weeks', 'snapshots expire in days': 28
         },
         'daily_keep12w': {
-            'name': 'daily12wks', 'tag': 'DAILY-KEEP12WEEKS',
+            'name': 'daily12wks', 'tag': 'JPLISSA-DAILY-KEEP12WEEKS',
             'snapshot frequency': 'every 1 day', 'snapshot frequency in days': 1,
             'snapshots expire': '12 weeks', 'snapshots expire in days': 84
         },
         'waive': {
-            'name': 'waive', 'tag': 'WAIVE',
+            'name': 'waive', 'tag': 'JPLISSA-WAIVE',
         }
     }
 

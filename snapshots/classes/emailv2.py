@@ -10,7 +10,12 @@ class Emailv2:
 
     debug = False
 
+    #def __init__(self, m_ses_profile, m_subject, m_html, m_text, m_email_from, m_email_to):
     def __init__(self, email_attrs, email_type = ''):
+
+        #pp.pprint(email_attrs)
+        #exit()
+
         self.email_type = email_type
         self.attrs = email_attrs
         if ( self.email_type is 'ses' ):
