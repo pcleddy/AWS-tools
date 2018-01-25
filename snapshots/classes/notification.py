@@ -1,5 +1,5 @@
+from classes.config import Config
 from .email import Email
-
 import logging
 import boto3
 import hashlib
@@ -9,7 +9,7 @@ pp = pprint.PrettyPrinter(indent=4)
 class Notification(object):
 
     def __init__(self, notification_type, msg_attrs, **kwargs):
-        logging.basicConfig(filename='/var/tmp/aws-tools.log',level=logging.INFO,format='%(asctime)s %(message)s')
+        self._config = Config().get_config()
         self._msg_attr = msg_attrs
         if ( notification_type == 'email' ):
             self.send_email()
@@ -21,4 +21,4 @@ class Notification(object):
         logging.info('Notification: sent email.')
 
     def send_no_protocol(self):
-        logging.info('Notification: no protocol given.')
+        logging.info('Notification: no protocol given, sent nothing.')

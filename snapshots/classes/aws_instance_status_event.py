@@ -1,20 +1,17 @@
+from classes.config import Config
 from .notification import Notification
 from jinja2 import Template
-
 from pytz import timezone
 import socket
 import logging
 import boto3
 import hashlib
-import pprint
-pp = pprint.PrettyPrinter(indent=4)
+from lib import HTML
 
 class AWSInstanceStatusEvent(object):
 
-    POC_flag = True
-
     def __init__(self, instance_id, event):
-        logging.basicConfig(filename='/var/tmp/aws-tools.log',level=logging.INFO,format='%(asctime)s %(message)s')
+        self._config = Config().get_config()
         self._instance_id = instance_id
         self._event = event
         self.set_digest()
@@ -58,17 +55,26 @@ class AWSInstanceStatusEvent(object):
     def is_new(self):
         return self._new_event
 
-    def get_owner(self):
+    def get_owners(self):
+        if ( self._server is None ):
+            return []
+        else:
+            return self._server['owners']
+
+    def get_owners_str(self):
         if ( self._server is None ):
             return 'N/A'
         else:
-            return self._server['name'] + '@mydomain'
+            return ', '.join(self.get_owners())
 
-    def get_owner_email_addr(self):
+    def get_owners_email_addrs(self):
         if ( self._server is None ):
-            return 'paul.leddy@mydomain'
+            return ['paul.leddy@jpl.nasa.gov']
         else:
-            return self._server['name'] + '@mydomain'
+            return map(lambda x: x + '@jpl.nasa.gov', self._server['owners'])
+
+    def get_owners_email_addrs_str(self):
+        return ', '.join(self.get_owners_email_addrs())
 
     def get_cog_admin(self):
         if ( self._server is None ):
@@ -76,10 +82,10 @@ class AWSInstanceStatusEvent(object):
         else:
             return self._server['cog_admin']
 
-    def get_html_message_to_owner(self):
+    def get_html_message_to_owners(self):
         return self.get_html_template()
 
-    def get_text_message_to_owner(self):
+    def get_text_message_to_owners(self):
         return 'You got mail: ' + self._instance_id + '. STOP.'
 
     def get_not_before_date_str(self):
@@ -94,16 +100,12 @@ class AWSInstanceStatusEvent(object):
     def get_vm_name(self):
         if ( self._server is None ):
             return self._instance_id
-        # VM Maintenance: fqdn.mydomin (if hostname != null and domain != null)
         if ( self._server['hostname'] is not None and self._server['domain'] is not None ):
             return self._server['hostname'] + '.' + self._server['domain']
-        # VM Maintenance: device_name (if hostname == null, or domain == null)
         elif ( ( self._server['hostname'] is None or self._server['domain'] is None) and self._server['device_name'] is not None ):
             return self._server['device_name']
-        # VM Maintenance: private IP  (if device_name == null, and if govcloud region)
         elif ( self._server['aws_acct_type'] is 'GOV' and self._server['ip_address'] is not None):
              return self._server['ip_address']
-        # VM Maintenance: public IP / private IP  (if device_name == null, and if public region)
         elif ( self._server['device_name'] is None and self._server['aws_acct_type'] is 'EC2' and self._server['ip_address'] is not None ):
             return self._server['ip_address']
         elif ( self._name is not None ):
@@ -111,38 +113,27 @@ class AWSInstanceStatusEvent(object):
         else:
             return self._instance_id
 
-    def send_notification_to_owner(self):
-        if ( not self.on_prod() ):
-            p_subject='Instance Status Event Notification: ' + self.get_vm_name()
-            p_email_attrs = {
-                'email_type': 'ses',
-                'email_to': ['paul.leddy@mydomain'],
-                'email_from': 'paul.leddy@mydomain',
-                'subject': p_subject,
-                'html': self.get_html_message_to_owner(),
-                'text': self.get_text_message_to_owner()
-            }
-            Notification( 'email', p_email_attrs)
-        else:
-            p_subject='Instance Status Event Notification: ' + self.get_vm_name()
-            p_email_to = ['paul.leddy@mydomain', 'ryan.frost@mydomain'] if ( AWSInstanceStatusEvent.POC_flag ) else self.get_owner_email_addr()
-            p_email_attrs = {
-                'email_to': p_email_to,
-                'email_from': 'root@mydomain',
-                'subject': p_subject,
-                'html': self.get_html_message_to_owner(),
-                'text': self.get_text_message_to_owner()
-            }
-            Notification('email', p_email_attrs)
+    def send_notification_to_owners(self):
+        p_subject='Instance Status Event Notification: ' + self.get_vm_name()
+        p_email_to = self._config['general']['sa_recipients'] if ( self._config['general']['POC'] ) else self.get_owners_email_addrs()
+        p_email_attrs = {
+            'email_type': self._config['general']['email_type'],
+            'email_to': p_email_to,
+            'email_from': self._config['general']['email_from'],
+            'subject': p_subject,
+            'html': self.get_html_message_to_owners(),
+            'text': self.get_text_message_to_owners()
+        }
+        Notification('email', p_email_attrs)
 
     def get_html_template(self):
         p_template_raw = '''
             <h1>DEV PHASE</h1>
-            <p>To: {{ owner_email }}
+            <p>To: {{ owners_email_addrs_str }}
 
             <p>Hello,
 
-            <p>Your Amazon VM, {{ vm_name }}, is scheduled for maintenance by Amazon.  An outage will be incurred during the maintenance window below.  Please reply to this email if you would like to resolve the maintenance at a time before the scheduled maintenance window.  Resolving the maintenance requirement ahead of time will involve powering down your VM, and powering it back on.
+            <p>Your Amazon VM, {{ vm_name }}, is scheduled for maintenance by Amazon.  An outage will be incurred during the maintenance window below.  Please reply to this email if you would like to resolve the maintenance at a time before the scheduled maintenance window.  Resolving the maintenance requirement ahead of time will involve powering down your VM, and powering it back on, or merely a reboot, depending on the maintenance type.
 
             <p>Maintenance Details:
 
@@ -152,49 +143,29 @@ class AWSInstanceStatusEvent(object):
                 <li>Description: {{ maintenance_desc }}
                 <li>Maintenance window start time: {{ not_before }}
                 <li>Maintenance window end time: {{ not_after }}
-                <li>Owner: {{ owner }}
+                <li>Owners: {{ owners_str }}
             </ul>
 
             <p>Thank you,<br />
-            Infrastructure Team<br />
-            admin@mydomain
+            Infrastructure SA Team<br />
+            jplis-sa@jpl.nasa.gov
 
             '''
 
         p_template = Template(p_template_raw)
         p_html = p_template.render(
-            owner_email = self.get_owner_email_addr(),
+            owners_email_addrs_str = self.get_owners_email_addrs_str(),
             vm_name = self.get_vm_name(),
             instance_id = self._instance_id,
             not_before = self.get_not_before_date_str(),
             not_after = self.get_not_after_date_str(),
             maintenance_desc = self._event['Description'],
-            owner = self.get_owner(),
+            owners_str = self.get_owners_str(),
         )
 
         return p_html
 
-    def get_sa_report_snippet(self):
-        html_snippet = '<td>'
-        html_snippet += self._name
-        html_snippet += '<td>'
-        html_snippet += self.get_cog_admin()
-        html_snippet += '<td>'
-        html_snippet += self._instance_id
-        html_snippet += '<td>'
-        html_snippet += self._event['Description']
-        #m_html += "Code: " + e['Code'] + "\n"
-        html_snippet += '<td>'
-        html_snippet += self.get_not_before_date_str()
-        html_snippet += '<td>'
-        html_snippet += self.get_not_after_date_str()
-        html_snippet += '<td>'
-        html_snippet += self.get_owner()
-        return html_snippet
-
-    def on_prod(self):
-        on_prod_flag = 'admin' in socket.gethostname()
-        logging.info('AWSInstanceStatusEvent: on_prod: ' + str(on_prod_flag))
-        return on_prod_flag
+    def get_sa_report_row(self):
+        return [self._name, self.get_cog_admin(), self._instance_id, self._event['Description'], self.get_not_before_date_str(), self.get_not_after_date_str(), self.get_owners_str()]
 
 # END

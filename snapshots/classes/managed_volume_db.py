@@ -1,3 +1,4 @@
+from classes.config import Config
 import pymysql.cursors
 import pprint
 from os.path import expanduser
@@ -8,38 +9,8 @@ pp = pprint.PrettyPrinter(indent=4)
 
 class ManagedVolumeDB():
 
-    backup_sets = {
-        'weekly': {
-            'name': 'weekly', 'tag': 'JPLISSA-WEEKLY-KEEP1MONTH',
-            'snapshot frequency': 'every 1 week', 'snapshot frequency in days': 7,
-            'snapshots expire': '1 month', 'snapshots expire in days': 31
-        },
-        'daily': {
-            'name': 'daily', 'tag': 'JPLISSA-DAILY-KEEP1WEEK',
-            'snapshot frequency': 'every 1 day', 'snapshot frequency in days': 1,
-            'snapshots expire': '1 week', 'snapshots expire in days': 7
-        },
-        'daily_keep2w': {
-            'name': 'daily2wks', 'tag': 'JPLISSA-DAILY-KEEP2WEEKS',
-            'snapshot frequency': 'every 1 day', 'snapshot frequency in days': 1,
-            'snapshots expire': '2 weeks', 'snapshots expire in days': 14
-        },
-        'daily_keep4w': {
-            'name': 'daily4wks', 'tag': 'JPLISSA-DAILY-KEEP4WEEKS',
-            'snapshot frequency': 'every 1 day', 'snapshot frequency in days': 1,
-            'snapshots expire': '4 weeks', 'snapshots expire in days': 28
-        },
-        'daily_keep12w': {
-            'name': 'daily12wks', 'tag': 'JPLISSA-DAILY-KEEP12WEEKS',
-            'snapshot frequency': 'every 1 day', 'snapshot frequency in days': 1,
-            'snapshots expire': '12 weeks', 'snapshots expire in days': 84
-        },
-        'waive': {
-            'name': 'waive', 'tag': 'JPLISSA-WAIVE',
-        }
-    }
-
     def __init__(self, m_env):
+        self._config = Config().get_config()
         self.volume_index = self.get_volume_info(m_env)
 
     def get_config(self, m_env):
@@ -70,7 +41,7 @@ class ManagedVolumeDB():
                 m_sql = 'SELECT volume_id, snapshot_schedule FROM assets.ec2_snapshot_schedules'
                 m_cursor.execute(m_sql)
                 for m_row in m_cursor:
-                    m_volume_index[m_row['volume_id']] = ManagedVolumeDB.backup_sets[m_row['snapshot_schedule']]
+                    m_volume_index[m_row['volume_id']] = self._config['backup_sets'][m_row['snapshot_schedule']]
         finally:
             m_connection.close()
 
@@ -78,7 +49,7 @@ class ManagedVolumeDB():
 
     def get_snapshot_expiration_in_days(self, m_volume_id):
         if self.is_managed(m_volume_id):
-            return ManagedVolumeDB.backup_sets[self.volume_index[m_volume_id]['backup_set_name']]['snapshots expire in days']
+            return self._config['backup_sets'][self.volume_index[m_volume_id]['backup_set_name']]['snapshots expire in days']
         else:
             return None
 

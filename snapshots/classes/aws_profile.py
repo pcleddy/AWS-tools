@@ -1,16 +1,15 @@
+from classes.config import Config
 from .aws_instance_status_event import AWSInstanceStatusEvent
-
 import logging
 import boto3
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
-
+from lib import HTML
 
 class AWSProfile(object):
 
     def __init__(self, profile_name, profile_region='us-west-1'):
-        logging.basicConfig(filename='/var/tmp/aws-tools.log',level=logging.INFO,format='%(asctime)s %(message)s')
-        logging.info('AWSProfile: init profile: ' + str(profile_name))
+        self._config = Config().get_config()
         self._profile_name = profile_name
         self._profile_region = profile_region
         self.set_profile_aws_session()
@@ -26,14 +25,24 @@ class AWSProfile(object):
         self._aws_client = self._aws_session.client('ec2')
 
     def set_instance_statuses(self):
-        self._instance_statuses = self._aws_client.describe_instance_status( Filters=[ { 'Name': 'event.code', 'Values': [ 'instance-reboot', 'system-reboot', 'system-maintenance', 'instance-retirement', 'instance-stop' ] }, ], )['InstanceStatuses']
+        if self._config['general']['use_test_data']:
+            import datetime
+            import pytz
+            self._instance_statuses = [
+                { 'Events':
+                    [ { 'Code': 'system-maintenance', 'Description': 'desc abcdefg', 'NotAfter': pytz.utc.localize(datetime.datetime.utcnow()), 'NotBefore': pytz.utc.localize(datetime.datetime.utcnow()) }, ], 'InstanceId': 'i-abcdefg', },
+                { 'Events':
+                    [ { 'Code': 'system-maintenance', 'Description': 'desc xxxxxxxx', 'NotAfter': pytz.utc.localize(datetime.datetime.utcnow()), 'NotBefore': pytz.utc.localize(datetime.datetime.utcnow()) }, ], 'InstanceId': 'i-xxxxxxxx', },
+            ]
+        else:
+            self._instance_statuses = self._aws_client.describe_instance_status( Filters=[ { 'Name': 'event.code', 'Values': [ 'instance-reboot', 'system-reboot', 'system-maintenance', 'instance-retirement', 'instance-stop' ] }, ], )['InstanceStatuses']
 
     def get_instance_name_tag(self, instance_id):
         response = self._aws_client.describe_tags( Filters=[ { 'Name': 'resource-id', 'Values': [ instance_id, ], }, ], )
         for tags in response['Tags']:
             if tags['Key'] == 'Name':
                 return tags['Value']
-        return None
+        return 'Unavailable'
 
     def set_events(self):
         events = []
@@ -65,18 +74,19 @@ class AWSProfile(object):
     def send_notifications_for_new_events(self):
         for event in self._events:
             if ( event.is_new() ):
-                event.send_notification_to_owner()
+                event.send_notification_to_owners()
         logging.info('AWSProfile: sent notifications for new events')
 
     def get_sa_report_snippet(self):
         event_sa_report_snippets = []
         for event in self._events:
-            event_sa_report_snippets.append(event.get_sa_report_snippet())
+            event_sa_report_snippets.append(event.get_sa_report_row())
         logging.info('AWSProfile get_sa_report_snippet: ' +  str(event_sa_report_snippets))
         if ( event_sa_report_snippets ):
-            return '<h3>' + self._profile_name + ': ' + self._profile_region + '</h3>' + '<table border="1">' + '<tr>' + '<th>VM</th>' + '<th>CA</th>' + '<th>Instance</th>' + '<th>Description</th>' + '<th>Not Before</th>' + '<th>Not After</th>' + '<th>Owner</th>' + '</tr>' + '<tr>'.join(event_sa_report_snippets) + '</table>'
+            m_table = HTML.table(event_sa_report_snippets, header_row=['VM', 'CA', 'Instance', 'Description', 'Not Before', 'Not After', 'Owners'])
+            return '<h3>' + self._profile_name + ': ' + self._profile_region + '</h3>' + str(m_table)
         else:
-            return '<h3>' + self._profile_name + ': ' + self._profile_region + '</h3>' + '<table>' + '<tr>' + 'No instance status events.'
+            return '<h3>' + self._profile_name + ': ' + self._profile_region + '</h3>' + '<p>' + 'No instance status events.'
 
 
 

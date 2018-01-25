@@ -1,20 +1,18 @@
+from classes.config import Config
 import boto3
 import smtplib
 from mailer import Mailer
 from mailer import Message
 import logging
-
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
 class Email(object):
 
-    debug = False
-
     def __init__(self, email_attrs):
-        logging.basicConfig(filename='/var/tmp/aws-tools.log',level=logging.INFO,format='%(asctime)s %(message)s')
+        self._config = Config().get_config()
         self._attrs = email_attrs
-        if ( ( 'email_type' in self._attrs ) and (self._attrs['email_type'] is 'ses') ):
+        if ( ( 'email_type' in self._attrs ) and ( self._attrs['email_type'] == 'ses' ) ):
             self.send_email_via_ses()
         else:
             self.send_email_via_localhost()
@@ -22,7 +20,7 @@ class Email(object):
     def send_email_via_ses(self):
         self._body = {}
         if not 'ses_profile' in self._attrs:
-            self._attrs['ses_profile'] = 'public1'
+            self._attrs['ses_profile'] = self._config['general']['ses_profile']
         if 'html' in self._attrs:
             self._body.update({'Html': { 'Charset': 'UTF-8', 'Data': self._attrs['html'], }})
         if 'text' in self._attrs:

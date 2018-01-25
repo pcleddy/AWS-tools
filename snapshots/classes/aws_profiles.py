@@ -1,6 +1,6 @@
+from classes.config import Config
 from .aws_profile import AWSProfile
 from .notification import Notification
-
 import logging
 import socket
 import pprint
@@ -10,7 +10,7 @@ pp = pprint.PrettyPrinter(indent=4)
 class AWSProfiles(object):
 
     def __init__(self, **kwargs):
-        logging.basicConfig(filename='/var/tmp/aws-tools.log',level=logging.INFO,format='%(asctime)s %(message)s')
+        self._config = Config().get_config()
         self._profile_defs = kwargs['profiles_defs']
         self._profiles = []
         self.generate_profiles()
@@ -30,23 +30,14 @@ class AWSProfiles(object):
     def send_sa_report(self):
         logging.info('AWSProfiles: ' + str(self._snippets))
         p_subject='Instance Status Event Report'
-        if ( not self.on_prod() ):
-            p_email_attrs = {
-                'email_type': 'ses',
-                'email_to': ['paul.leddy@mydomain'],
-                'email_from': 'paul.leddy@mydomain',
-                'subject': p_subject,
-                'html': self.get_html_report(),
-                'text': self.get_text_report()
-            }
-        else:
-            p_email_attrs = {
-                'email_to': ['paul.leddy@mydomain', 'ryan.frost@mydomain'],
-                'email_from': 'root@mydomain',
-                'subject': p_subject,
-                'html': self.get_html_report(),
-                'text': self.get_text_report()
-            }
+        p_email_attrs = {
+            'email_type': self._config['general']['email_type'],
+            'email_to': self._config['general']['sa_recipients'],
+            'email_from': self._config['general']['email_from'],
+            'subject': p_subject,
+            'html': self.get_html_report(),
+            'text': self.get_text_report()
+        }
         Notification('email', p_email_attrs)
         logging.info('AWSProfiles: sent report')
 
@@ -76,10 +67,5 @@ class AWSProfiles(object):
             if p_digests:
                 current_digests.extend(p_digests)
         return current_digests
-
-    def on_prod(self):
-        on_prod_flag = 'admin' in socket.gethostname()
-        logging.info('AWSProfiles: on_prod: ' + str(on_prod_flag))
-        return on_prod_flag
 
 # END
