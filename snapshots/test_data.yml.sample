@@ -1,0 +1,35 @@
+snapshots:
+  managed_volumes:
+    vol-abcd1234:
+      name: daily
+      snapshot frequency: every 1 day
+      snapshot frequency in days: 1
+      snapshots expire: 1 week
+      snapshots expire in days: 7
+      tag: mycompany-DAILY-KEEP1WEEK
+    vol-1234abcd:
+      name: waive
+      tag: mycompany-WAIVE
+    vol-ffff8888:
+      name: weekly
+      snapshot frequency: every 1 week
+      snapshot frequency in days: 7
+      snapshots expire: 1 month
+      snapshots expire in days: 31
+      tag: mycompany-WEEKLY-KEEP1MONTH
+  profiles:
+    mycompany-public_us-west-1:
+      volumes:
+        - VolumeId: vol-abcd1234
+          Attachments:
+            InstanceId: i-cee974eb
+            VolumeId: vol-abcd1234
+          Tags:
+            - Key: SnapSchedule
+              Value: mycompany-WEEKLY-KEEP1MONTH
+            - Key: Badge
+              Value: 111222
+            - Key: Account
+              Value: IMCCBS 11.222.33.A
+            - Key: Name
+              Value: random001.mycompany.gov

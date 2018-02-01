@@ -3,40 +3,33 @@ import pickle
 import datetime
 from jinja2 import Template
 import time
+import logging
+import sys
 
 from classes.volume import Volume
 from classes.snapshot import Snapshot
 from classes.managed_volume_db import ManagedVolumeDB
 from classes.emailv2 import Emailv2
-from classes.plot import Plot
+from classes.config import Config
+from classes.notification import Notification
 
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
-import logging
-import sys
+m_config = Config().get_config()
+logging.basicConfig(filename=m_config['snapshots']['logging'],level=logging.INFO,format='%(asctime)s %(message)s')
 
-logger = logging.getLogger('ec2-snapshots')
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler(stream=sys.stdout)
-handler.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s', '%Y-%m-%d %H:%M:%S')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+logging.info("\n\n\n>>>>>>>>>>>>>> START")
 
-m_debug = False
-m_dryrun = False
-m_do_stats_and_email = True
-m_live = True
-#m_env = 'dev'
-#m_env = 'prod-portforward'
-m_env = 'prod'
-m_profiles = ['test'] if (m_env == 'dev') else ['public1', 'public2']
+m_debug = m_config['snapshots']['debug']
+m_dryrun = m_config['snapshots']['dryrun']
+m_send_email = m_config['snapshots']['email']
+m_live = m_config['snapshots']['live']
+m_profiles = m_config['snapshots']['snapshot_aws_profiles']
 
 # get frequencies
 
-m_managed_volume_db = ManagedVolumeDB(m_env)
-
+m_managed_volume_db = ManagedVolumeDB()
 
 # for each profile, get volumes and snapshots
 
@@ -45,7 +38,6 @@ m_volume_index = {}
 m_snapshots = []
 m_snapshot_index = {}
 
-
 m_expired_snapshots = []
 
 for m_profile_name in m_profiles:
@@ -53,35 +45,36 @@ for m_profile_name in m_profiles:
     m_session_ec2 = boto3.Session(profile_name = m_profile_name)
     m_client_ec2 = m_session_ec2.client('ec2')
 
-
-    # fetch
-
-    m_storage_path = '/tmp/'
-
     if (m_live):
+
+        logging.info('Live: fetching live data')
 
         m_volumes_fetched = m_client_ec2.describe_volumes()
         m_snapshots_fetched = m_client_ec2.describe_snapshots(OwnerIds=['self'])
 
         # save
-        m_filehandle = open(m_storage_path + m_profile_name + '_vols.pkl', 'wb')
+        m_filehandle = open(m_config['snapshots']['storage']['path'] + '/' + m_profile_name + m_config['snapshots']['storage']['volumes_suffix'], 'wb')
         pickle.dump(m_volumes_fetched, m_filehandle)
         m_filehandle.close()
 
-        m_filehandle = open(m_storage_path + m_profile_name + '_snaps.pkl', 'wb')
+        m_filehandle = open(m_config['snapshots']['storage']['path'] + '/' + m_profile_name + m_config['snapshots']['storage']['snapshots_suffix'], 'wb')
         pickle.dump(m_snapshots_fetched, m_filehandle)
         m_filehandle.close()
 
     else:
 
-        m_filehandle = open(m_storage_path + m_profile_name + '_vols.pkl', 'rb')
+        logging.info('Not live: reading stored data')
+
+        m_filehandle = open(m_config['snapshots']['storage']['path'] + '/' + m_profile_name + m_config['snapshots']['storage']['volumes_suffix'], 'rb')
         m_volumes_fetched = pickle.load(m_filehandle)
         m_filehandle.close()
 
-        m_filehandle = open(m_storage_path + m_profile_name + '_snaps.pkl', 'rb')
+        m_filehandle = open(m_config['snapshots']['storage']['path'] + '/' + m_profile_name + m_config['snapshots']['storage']['snapshots_suffix'], 'rb')
         m_snapshots_fetched = pickle.load(m_filehandle)
         m_filehandle.close()
 
+    m_volumes_fetched = m_client_ec2.describe_volumes()
+    m_snapshots_fetched = m_client_ec2.describe_snapshots(OwnerIds=['self'])
 
     # volumes returned from AWS API
     for m_volume_fetched in m_volumes_fetched['Volumes']:
@@ -118,7 +111,7 @@ for m_profile_name in m_profiles:
 
 m_volumes_needing_snapshot = [ m_volume for m_volume in m_volumes if m_volume.needs_snapshot() ]
 for m_volume in m_volumes_needing_snapshot:
-    logger.info("Snapshotting: %s", m_volume.id)
+    logging.info("Snapshotting: %s", m_volume.id)
     m_volume.take_snapshot(m_dryrun)
 
 # delete expired and tagged snapshots
@@ -131,15 +124,15 @@ m_expired_and_tagged_managed = [
 ]
 
 for m_snapshot in m_expired_and_tagged_managed:
-    logger.info("Deleting snapshot: %s of %s", m_snapshot.id, m_snapshot.volume_id)
+    logging.info("Deleting snapshot: %s of %s", m_snapshot.id, m_snapshot.volume_id)
     if ( not m_snapshot.is_waived() ):
-        logger.info("Age: %s days, %s hours; expiration in days: %s", m_snapshot.old_days, m_snapshot.old_hours, m_snapshot.expiration_in_days)
+        logging.info("Age: %s days, %s hours; expiration in days: %s", m_snapshot.old_days, m_snapshot.old_hours, m_snapshot.expiration_in_days)
     m_snapshot.delete(m_dryrun)
 
 # Clean up tagged snapshots with no associated volume
 snapshots_no_volume_tagged = [ m_snapshot for m_snapshot in m_snapshots if ( (not m_snapshot.has_volume_flag()) and m_snapshot.has_snapschedule_tag_flag() ) ]
 for m_snapshot in snapshots_no_volume_tagged:
-    logger.info("Deleting tagged snapshot with no associated volume: %s", m_snapshot.id)
+    logging.info("Deleting tagged snapshot with no associated volume: %s", m_snapshot.id)
     m_snapshot.delete(m_dryrun)
 
 if m_debug:
@@ -169,17 +162,17 @@ for m_volume in m_volumes_needing_snapshot:
     m_multiplier = 1
     while True:
         if m_volume.is_snapshot_completed(m_dryrun):
-            logger.debug("Snapshot complete: %s of volume %s)", m_volume.new_snapshot_id, m_volume.id)
+            logging.debug("Snapshot complete: %s of volume %s)", m_volume.new_snapshot_id, m_volume.id)
             break
         else:
-            logger.info("Sleeping: %s for volume %s is pending (multiplier: %s)", m_volume.new_snapshot_id, m_volume.id, m_multiplier)
+            logging.info("Sleeping: %s for volume %s is pending (multiplier: %s)", m_volume.new_snapshot_id, m_volume.id, m_multiplier)
             time.sleep(.1 * m_multiplier)
             m_multiplier *= 2
             if (m_multiplier > 2**15):
-                logger.info("Snapshot pending long time, skipping")
+                logging.info("Snapshot pending long time, skipping")
                 break
 
-if not m_do_stats_and_email:
+if not m_send_email:
     exit()
 
 m_tmp_text =''
@@ -206,29 +199,11 @@ for m_profile_name in m_profiles:
 
     m_tmp_text += "\n\n\n\n"
 
-m_s3_profile = 'test' if (m_env == 'dev') else 'public1'
-
 # send email report
 
 m_text = ''
 if m_dryrun: m_text += '<h1>DRY RUN!</h1>'
 m_text += '<p>' + m_tmp_text + '<br />'
-
-m_subject = 'Volumes/Snapshot report'
-
-if (m_env == 'dev' or m_env == 'prod-portforward'):
-    m_email_from = 'paul@mydomain'
-    m_email_to = ['paul@mydomain']
-    m_ses_profile = 'test-east'
-    m_email_type = 'ses'
-else:
-    m_email_from = 'root@mydomain'
-    if (m_dryrun or m_debug):
-        m_email_to = ['paul@mydomain']
-    else:
-        m_email_to = ['paul@mydomain', 'bob@mydomain']
-    m_ses_profile = 'public1'
-    m_email_type = 'localhost'
 
 m_template_raw = '''
 <!DOCTYPE html>
@@ -246,20 +221,18 @@ m_template = Template(m_template_raw)
 m_html = m_template.render(m_string = m_text)
 
 
-logger.info("Sending email report")
+logging.info("Sending email report")
 
-m_email_attrs = {
-    'ses_profile': m_ses_profile,
-    'email_type': m_email_type,
-    'email_from': m_email_from,
-    'email_to': m_email_to,
-    'subject': m_subject,
+p_subject = 'Volumes/Snapshot report'
+p_email_attrs = {
+    'email_type': m_config['general']['email_type'],
+    'email_to': m_config['general']['sa_recipients'],
+    'email_from': m_config['general']['email_from'],
+    'subject': p_subject,
     'html': m_html,
-    'text': m_text
+    'text': m_text,
 }
-Emailv2(email_attrs = m_email_attrs, email_type = m_email_type)
-
-
+Notification('email', p_email_attrs)
 
 
 # END

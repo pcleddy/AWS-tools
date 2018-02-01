@@ -4,7 +4,6 @@ import datetime
 import pytz
 import logging
 import time
-from lib.json2elk import send_json2elk
 import json
 
 logger = logging.getLogger('ec2-snapshots')
@@ -130,7 +129,8 @@ class Volume():
             m_response.pop('ResponseMetadata', None)
             m_response['AWSAccountName'] = self.profile
             m_response['FrequencyInDays'] = self.get_snapshot_freq_in_days()
-            m_result = send_json2elk(json.dumps(m_response), 'snapshots', 'snapshot', str(m_snapshot_id))
+            # was sending data to elk stack, but turning off until can send to splunk instead
+            #m_result = send_json2elk(json.dumps(m_response), 'snapshots', 'snapshot', str(m_snapshot_id))
 
             m_response = self.client_ec2.create_tags(
                 Resources = [ m_snapshot_id ],

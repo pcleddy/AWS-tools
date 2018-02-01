@@ -1,0 +1,98 @@
+snapshots:
+  debug: False
+  dryrun: True
+  email: True
+  live: False
+  logging: /var/tmp/aws-tools-volume-snapshots.log
+  aws_profiles:
+    - mycompany-private
+    - mycompany-public
+  storage:
+    path: /tmp
+    volumes_suffix: _vols.pkl
+    snapshots_suffix: _snaps.pkl
+  profile_defs:
+    - profile_name: mycompany-public
+      profile_region: us-west-1
+    - profile_name: mycompany-govcloud
+      profile_region: us-gov-west-1
+  use_test_data: False
+
+database:
+  hostname: 127.0.0.1
+  port: 3307
+  db: assets
+  user: mycompany
+  password: abc123
+
+events:
+  store:
+    path: /var/tmp/
+    filename: events.pkl
+
+logging:
+  system-maintenance: /var/tmp/aws-tools-system-maintenance.log
+
+profile_defs:
+  - profile_name: mycompany-public
+    profile_region: us-west-1
+  - profile_name: mycompany-public
+    profile_region: us-west-2
+
+sql: >
+  select name
+  from servers as s, contacts as c, ip_address as ip
+  where s.`id` = c.`id__servers`
+  and (s.property_id LIKE THIS% or s.property_id LIKE THAT%)
+  and s.ip_address_id = ip.id;
+
+general:
+  owner_notifications: False
+  send_report: False
+  POC: True
+  email_type: ses
+  ses_profile: mycompany-test-east
+  email_from: paul.leddy@mydomain.gov
+  sa_recipients:
+    - pleddy@mydomain.gov
+  use_test_data: False
+
+backup_sets:
+  weekly:
+    name: weekly
+    tag: mycompany-WEEKLY-KEEP1MONTH
+    snapshot frequency: every 1 week
+    snapshot frequency in days: 7
+    snapshots expire: 1 month
+    snapshots expire in days: 31
+  daily:
+    name: daily
+    tag: mycompany-DAILY-KEEP1WEEK
+    snapshot frequency: every 1 day
+    snapshot frequency in days: 1
+    snapshots expire: 1 week
+    snapshots expire in days: 7
+  daily_keep2w:
+    name: daily2wks
+    tag: mycompany-DAILY-KEEP2WEEKS
+    snapshot frequency: every 1 day
+    snapshot frequency in days: 1
+    snapshots expire: 2 weeks
+    snapshots expire in days: 14
+  daily_keep4w:
+    name: daily4wks
+    tag: mycompany-DAILY-KEEP4WEEKS
+    snapshot frequency: every 1 day
+    snapshot frequency in days: 1
+    snapshots expire: 4 weeks
+    snapshots expire in days: 28
+  daily_keep12w:
+    name: daily12wks
+    tag: mycompany-DAILY-KEEP12WEEKS
+    snapshot frequency: every 1 day
+    snapshot frequency in days: 1
+    snapshots expire: 12 weeks
+    snapshots expire in days: 84
+  waive:
+    name: waive
+    tag: mycompany-WAIVE

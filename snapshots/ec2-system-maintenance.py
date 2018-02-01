@@ -2,13 +2,14 @@ from classes.aws_profiles import AWSProfiles
 from classes.sa_assets_servers import SAAssetsServers
 from classes.digests import Digests
 from classes.config import Config
+
 import socket
 import logging
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
 m_config = Config().get_config()
-logging.basicConfig(filename=m_config['logging']['path'],level=logging.INFO,format='%(asctime)s %(message)s')
+logging.basicConfig(filename=m_config['logging']['system-maintenance'],level=logging.INFO,format='%(asctime)s %(message)s')
 logging.info("\n\n\n>>>>>>>>>>>>>> START")
 p_profiles_defs = m_config['profile_defs']
 

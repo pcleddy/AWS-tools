@@ -9,30 +9,17 @@ pp = pprint.PrettyPrinter(indent=4)
 
 class ManagedVolumeDB():
 
-    def __init__(self, m_env):
+    def __init__(self):
         self._config = Config().get_config()
-        self.volume_index = self.get_volume_info(m_env)
+        self.volume_index = self.get_volume_info()
 
-    def get_config(self, m_env):
-        if (m_env == 'dev'):
-            m_dir_config = m_home + '/.ec2-snapshots/config.json'
-        elif (m_env == 'prod-portforward'):
-            m_dir_config = m_home + '/.ec2-snapshots/prod-pf-config.json'
-        else:
-             m_dir_config = '/opt/aws/ec2-snapshots/config_v2.json'
-
-        with open(m_dir_config) as m_data_file:
-            return json.load(m_data_file)
-
-    def get_volume_info(self, m_env):
-        m_config = self.get_config(m_env)
+    def get_volume_info(self):
         m_volume_index = {}
 
-
         m_connection = pymysql.connect(
-            host=m_config['database']['hostname'], user=m_config['database']['user'],
-            password=m_config['database']['password'], db=m_config['database']['db'],
-            port=int(m_config['database']['port']),
+            host=self._config['database']['hostname'], user=self._config['database']['user'],
+            password=self._config['database']['password'], db=self._config['database']['db'],
+            port=int(self._config['database']['port']),
             charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor
         )
 
