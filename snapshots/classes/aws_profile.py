@@ -83,8 +83,8 @@ class AWSProfile(object):
             event_sa_report_snippets.append(event.get_sa_report_row())
         logging.info('AWSProfile get_sa_report_snippet: ' +  str(event_sa_report_snippets))
         if ( event_sa_report_snippets ):
-            m_table = HTML.table(event_sa_report_snippets, header_row=['VM', 'CA', 'Instance', 'Description', 'Not Before', 'Not After', 'Owners'])
-            return '<h3>' + self._profile_name + ': ' + self._profile_region + '</h3>' + str(m_table)
+            table = HTML.table(event_sa_report_snippets, header_row=['VM', 'CA', 'Instance', 'Description', 'Not Before', 'Not After', 'Owners'])
+            return '<h3>' + self._profile_name + ': ' + self._profile_region + '</h3>' + str(table)
         else:
             return '<h3>' + self._profile_name + ': ' + self._profile_region + '</h3>' + '<p>' + 'No instance status events.'
 

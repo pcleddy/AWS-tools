@@ -26,11 +26,11 @@ class Email(object):
         if 'text' in self._attrs:
             self._body.update({'Text': { 'Charset': 'UTF-8', 'Data': self._attrs['text'], }})
 
-        m_session = boto3.Session(profile_name = self._attrs['ses_profile'])
-        m_client = m_session.client('ses')
+        session = boto3.Session(profile_name = self._attrs['ses_profile'])
+        client = session.client('ses')
 
         logging.info('Email: body: ' + str(self._body))
-        m_response = m_client.send_email(
+        response = client.send_email(
             Source = self._attrs['email_from'],
             Destination = { 'ToAddresses': self._attrs['email_to'] },
             Message = {
@@ -51,10 +51,10 @@ class Email(object):
         if 'text' in self._attrs:
             message.Body = self._attrs['text']
 
-        m_smtp_server = self._attrs['smtp_server'] if ('smtp_server' in self._attrs) else 'localhost'
-        if 'smtp_port' in self._attrs: m_smtp_server = m_smtp_server + ':' + self._attrs['smtp_port']
+        smtp_server = self._attrs['smtp_server'] if ('smtp_server' in self._attrs) else 'localhost'
+        if 'smtp_port' in self._attrs: smtp_server = smtp_server + ':' + self._attrs['smtp_port']
 
-        sender = Mailer(m_smtp_server)
+        sender = Mailer(smtp_server)
         try:
             sender.send(message)
         except:

@@ -1,20 +1,20 @@
 import socket
 import yaml
 import os.path
-m_home = os.path.expanduser("~")
+home = os.path.expanduser("~")
 
 class Config(object):
 
     def __init__(self):
         if ( self.on_prod() and os.path.isfile('/opt/aws/ec2-snapshots/config.yml') ):
-             m_dir_config = '/opt/aws/ec2-snapshots/config.yml'
-        elif ( os.path.isfile(m_home + '/.ec2-snapshots/config.yml') ):
-            m_dir_config = m_home + '/.ec2-snapshots/config.yml'
+             dir_config = '/opt/aws/ec2-snapshots/config.yml'
+        elif ( os.path.isfile(home + '/.ec2-snapshots/config.yml') ):
+            dir_config = home + '/.ec2-snapshots/config.yml'
         else:
             print('ERROR: No config file found, exiting')
             exit()
 
-        with open(m_dir_config, 'r') as ymlfile:
+        with open(dir_config, 'r') as ymlfile:
             self._config = yaml.load(ymlfile)
 
 

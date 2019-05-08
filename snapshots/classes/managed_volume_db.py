@@ -4,7 +4,7 @@ import pprint
 from os.path import expanduser
 import json
 
-m_home = expanduser("~")
+home = expanduser("~")
 pp = pprint.PrettyPrinter(indent=4)
 
 class ManagedVolumeDB():
@@ -14,9 +14,9 @@ class ManagedVolumeDB():
         self.volume_index = self.get_volume_info()
 
     def get_volume_info(self):
-        m_volume_index = {}
+        volume_index = {}
 
-        m_connection = pymysql.connect(
+        connection = pymysql.connect(
             host=self._config['database']['hostname'], user=self._config['database']['user'],
             password=self._config['database']['password'], db=self._config['database']['db'],
             port=int(self._config['database']['port']),
@@ -24,34 +24,34 @@ class ManagedVolumeDB():
         )
 
         try:
-            with m_connection.cursor() as m_cursor:
-                m_sql = 'SELECT volume_id, snapshot_schedule FROM assets.ec2_snapshot_schedules'
-                m_cursor.execute(m_sql)
-                for m_row in m_cursor:
-                    m_volume_index[m_row['volume_id']] = self._config['backup_sets'][m_row['snapshot_schedule']]
+            with connection.cursor() as cursor:
+                sql = 'SELECT volume_id, snapshot_schedule FROM assets.ec2_snapshot_schedules'
+                cursor.execute(sql)
+                for row in cursor:
+                    volume_index[row['volume_id']] = self._config['backup_sets'][row['snapshot_schedule']]
         finally:
-            m_connection.close()
+            connection.close()
 
-        return m_volume_index
+        return volume_index
 
-    def get_snapshot_expiration_in_days(self, m_volume_id):
-        if self.is_managed(m_volume_id):
-            return self._config['backup_sets'][self.volume_index[m_volume_id]['backup_set_name']]['snapshots expire in days']
+    def get_snapshot_expiration_in_days(self, volume_id):
+        if self.is_managed(volume_id):
+            return self._config['backup_sets'][self.volume_index[volume_id]['backup_set_name']]['snapshots expire in days']
         else:
             return None
 
-    def is_managed(self, m_volume_id):
-        return ( m_volume_id in self.volume_index )
+    def is_managed(self, volume_id):
+        return ( volume_id in self.volume_index )
 
-    def get_backup_set(self, m_volume_id):
-        if m_volume_id in self.volume_index:
-            return self.volume_index[m_volume_id]
+    def get_backup_set(self, volume_id):
+        if volume_id in self.volume_index:
+            return self.volume_index[volume_id]
         else:
             return None
 
-    def is_snapshot_waived(self, m_volume_id):
-        if m_volume_id in self.volume_index:
-            if ( self.volume_index[m_volume_id]['name'] == 'waive' ):
+    def is_snapshot_waived(self, volume_id):
+        if volume_id in self.volume_index:
+            if ( self.volume_index[volume_id]['name'] == 'waive' ):
                 return True
             else:
                 return False

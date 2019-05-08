@@ -16,196 +16,196 @@ from classes.notification import Notification
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
-m_config = Config().get_config()
-logging.basicConfig(filename=m_config['snapshots']['logging'],level=logging.INFO,format='%(asctime)s %(message)s')
+config = Config().get_config()
+logging.basicConfig(filename=config['snapshots']['logging'],level=logging.INFO,format='%(asctime)s %(message)s')
 
 logging.info("\n\n\n>>>>>>>>>>>>>> START")
 
-m_debug = m_config['snapshots']['debug']
-m_dryrun = m_config['snapshots']['dryrun']
-m_send_email = m_config['snapshots']['email']
-m_live = m_config['snapshots']['live']
-m_profiles = m_config['snapshots']['snapshot_aws_profiles']
+debug = config['snapshots']['debug']
+dryrun = config['snapshots']['dryrun']
+send_email = config['snapshots']['email']
+live = config['snapshots']['live']
+profiles = config['snapshots']['snapshot_aws_profiles']
 
 # get frequencies
 
-m_managed_volume_db = ManagedVolumeDB()
+managed_volume_db = ManagedVolumeDB()
 
 # for each profile, get volumes and snapshots
 
-m_volumes = []
-m_volume_index = {}
-m_snapshots = []
-m_snapshot_index = {}
+volumes = []
+volume_index = {}
+snapshots = []
+snapshot_index = {}
 
-m_expired_snapshots = []
+expired_snapshots = []
 
-for m_profile_name in m_profiles:
+for profile_name in profiles:
 
-    m_session_ec2 = boto3.Session(profile_name = m_profile_name)
-    m_client_ec2 = m_session_ec2.client('ec2')
+    session_ec2 = boto3.Session(profile_name = profile_name)
+    client_ec2 = session_ec2.client('ec2')
 
-    if (m_live):
+    if (live):
 
         logging.info('Live: fetching live data')
 
-        m_volumes_fetched = m_client_ec2.describe_volumes()
-        m_snapshots_fetched = m_client_ec2.describe_snapshots(OwnerIds=['self'])
+        volumes_fetched = client_ec2.describe_volumes()
+        snapshots_fetched = client_ec2.describe_snapshots(OwnerIds=['self'])
 
         # save
-        m_filehandle = open(m_config['snapshots']['storage']['path'] + '/' + m_profile_name + m_config['snapshots']['storage']['volumes_suffix'], 'wb')
-        pickle.dump(m_volumes_fetched, m_filehandle)
-        m_filehandle.close()
+        filehandle = open(config['snapshots']['storage']['path'] + '/' + profile_name + config['snapshots']['storage']['volumes_suffix'], 'wb')
+        pickle.dump(volumes_fetched, filehandle)
+        filehandle.close()
 
-        m_filehandle = open(m_config['snapshots']['storage']['path'] + '/' + m_profile_name + m_config['snapshots']['storage']['snapshots_suffix'], 'wb')
-        pickle.dump(m_snapshots_fetched, m_filehandle)
-        m_filehandle.close()
+        filehandle = open(config['snapshots']['storage']['path'] + '/' + profile_name + config['snapshots']['storage']['snapshots_suffix'], 'wb')
+        pickle.dump(snapshots_fetched, filehandle)
+        filehandle.close()
 
     else:
 
         logging.info('Not live: reading stored data')
 
-        m_filehandle = open(m_config['snapshots']['storage']['path'] + '/' + m_profile_name + m_config['snapshots']['storage']['volumes_suffix'], 'rb')
-        m_volumes_fetched = pickle.load(m_filehandle)
-        m_filehandle.close()
+        filehandle = open(config['snapshots']['storage']['path'] + '/' + profile_name + config['snapshots']['storage']['volumes_suffix'], 'rb')
+        volumes_fetched = pickle.load(filehandle)
+        filehandle.close()
 
-        m_filehandle = open(m_config['snapshots']['storage']['path'] + '/' + m_profile_name + m_config['snapshots']['storage']['snapshots_suffix'], 'rb')
-        m_snapshots_fetched = pickle.load(m_filehandle)
-        m_filehandle.close()
+        filehandle = open(config['snapshots']['storage']['path'] + '/' + profile_name + config['snapshots']['storage']['snapshots_suffix'], 'rb')
+        snapshots_fetched = pickle.load(filehandle)
+        filehandle.close()
 
-    m_volumes_fetched = m_client_ec2.describe_volumes()
-    m_snapshots_fetched = m_client_ec2.describe_snapshots(OwnerIds=['self'])
+    volumes_fetched = client_ec2.describe_volumes()
+    snapshots_fetched = client_ec2.describe_snapshots(OwnerIds=['self'])
 
     # volumes returned from AWS API
-    for m_volume_fetched in m_volumes_fetched['Volumes']:
-        m_volume_id = m_volume_fetched['VolumeId']
-        m_volume = Volume(
-            m_volume_id,
-            m_managed_volume_db.get_backup_set(m_volume_id),
-            m_client_ec2,
-            m_profile_name
+    for volume_fetched in volumes_fetched['Volumes']:
+        volume_id = volume_fetched['VolumeId']
+        volume = Volume(
+            volume_id,
+            managed_volume_db.get_backup_set(volume_id),
+            client_ec2,
+            profile_name
         )
-        m_volumes.append(m_volume)
-        m_volume_index.update({m_volume.id: m_volume})
+        volumes.append(volume)
+        volume_index.update({volume.id: volume})
 
-    for m_snapshot_fetched in m_snapshots_fetched['Snapshots']:
-        m_volume_id = m_snapshot_fetched['VolumeId']
-        m_snapshot = Snapshot(
-            m_snapshot_fetched['SnapshotId'],
-            m_volume_id,
-            m_snapshot_fetched['StartTime'],
-            m_client_ec2
+    for snapshot_fetched in snapshots_fetched['Snapshots']:
+        volume_id = snapshot_fetched['VolumeId']
+        snapshot = Snapshot(
+            snapshot_fetched['SnapshotId'],
+            volume_id,
+            snapshot_fetched['StartTime'],
+            client_ec2
         )
-        m_snapshots.append(m_snapshot)
-        m_snapshot_index.update({m_snapshot.id: m_snapshot})
-        if m_volume_id in m_volume_index:
-            m_volume_index[m_volume_id].add_snapshot(m_snapshot)
-            m_snapshot.set_has_volume_flag(True)
+        snapshots.append(snapshot)
+        snapshot_index.update({snapshot.id: snapshot})
+        if volume_id in volume_index:
+            volume_index[volume_id].add_snapshot(snapshot)
+            snapshot.set_has_volume_flag(True)
         else:
-            m_snapshot.set_has_volume_flag(False)
-        m_snapshot.set_waived(m_managed_volume_db.is_snapshot_waived(m_volume_id))
+            snapshot.set_has_volume_flag(False)
+        snapshot.set_waived(managed_volume_db.is_snapshot_waived(volume_id))
 
-    m_results = m_client_ec2.describe_snapshots( OwnerIds=['self'], Filters=[ { 'Name': 'tag-key', 'Values': [ 'SnapSchedule', ] }, ], )
-    for s in m_results['Snapshots']:
-        m_snapshot_index[s['SnapshotId']].set_snapschedule_tag_flag(True)
+    results = client_ec2.describe_snapshots( OwnerIds=['self'], Filters=[ { 'Name': 'tag-key', 'Values': [ 'SnapSchedule', ] }, ], )
+    for s in results['Snapshots']:
+        snapshot_index[s['SnapshotId']].set_snapschedule_tag_flag(True)
 
-m_volumes_needing_snapshot = [ m_volume for m_volume in m_volumes if m_volume.needs_snapshot() ]
-for m_volume in m_volumes_needing_snapshot:
-    logging.info("Snapshotting: %s", m_volume.id)
-    m_volume.take_snapshot(m_dryrun)
+volumes_needing_snapshot = [ volume for volume in volumes if volume.needs_snapshot() ]
+for volume in volumes_needing_snapshot:
+    logging.info("Snapshotting: %s", volume.id)
+    volume.take_snapshot(dryrun)
 
 # delete expired and tagged snapshots
-m_expired_and_tagged_managed = [
-    m_snapshot for m_snapshot in m_snapshots if (
-        m_snapshot.is_expired()
-        and m_snapshot.has_snapschedule_tag_flag()
-        and m_snapshot.is_managed()
+expired_and_tagged_managed = [
+    snapshot for snapshot in snapshots if (
+        snapshot.is_expired()
+        and snapshot.has_snapschedule_tag_flag()
+        and snapshot.is_managed()
     )
 ]
 
-for m_snapshot in m_expired_and_tagged_managed:
-    logging.info("Deleting snapshot: %s of %s", m_snapshot.id, m_snapshot.volume_id)
-    if ( not m_snapshot.is_waived() ):
-        logging.info("Age: %s days, %s hours; expiration in days: %s", m_snapshot.old_days, m_snapshot.old_hours, m_snapshot.expiration_in_days)
-    m_snapshot.delete(m_dryrun)
+for snapshot in expired_and_tagged_managed:
+    logging.info("Deleting snapshot: %s of %s", snapshot.id, snapshot.volume_id)
+    if ( not snapshot.is_waived() ):
+        logging.info("Age: %s days, %s hours; expiration in days: %s", snapshot.old_days, snapshot.old_hours, snapshot.expiration_in_days)
+    snapshot.delete(dryrun)
 
 # Clean up tagged snapshots with no associated volume
-snapshots_no_volume_tagged = [ m_snapshot for m_snapshot in m_snapshots if ( (not m_snapshot.has_volume_flag()) and m_snapshot.has_snapschedule_tag_flag() ) ]
-for m_snapshot in snapshots_no_volume_tagged:
-    logging.info("Deleting tagged snapshot with no associated volume: %s", m_snapshot.id)
-    m_snapshot.delete(m_dryrun)
+snapshots_no_volume_tagged = [ snapshot for snapshot in snapshots if ( (not snapshot.has_volume_flag()) and snapshot.has_snapschedule_tag_flag() ) ]
+for snapshot in snapshots_no_volume_tagged:
+    logging.info("Deleting tagged snapshot with no associated volume: %s", snapshot.id)
+    snapshot.delete(dryrun)
 
-if m_debug:
+if debug:
 
     print('Volumes')
-    for v in m_volumes:
+    for v in volumes:
         v.dump()
         print('-----------')
 
     print('Snapshots')
-    for s in m_snapshots:
+    for s in snapshots:
         pp.pprint(s.__dict__)
         print('-----------')
 
     print('Volumes Needing Snapshot')
-    for v in m_volumes_needing_snapshot:
+    for v in volumes_needing_snapshot:
         pp.pprint(v.__dict__)
 
     print('Snapshots Expired, Tagged and Managed')
-    for s in m_expired_and_tagged_managed:
+    for s in expired_and_tagged_managed:
         pp.pprint(s.__dict__)
 
-if m_dryrun :
+if dryrun :
     print('This was a dry run')
 
-for m_volume in m_volumes_needing_snapshot:
-    m_multiplier = 1
+for volume in volumes_needing_snapshot:
+    multiplier = 1
     while True:
-        if m_volume.is_snapshot_completed(m_dryrun):
-            logging.debug("Snapshot complete: %s of volume %s)", m_volume.new_snapshot_id, m_volume.id)
+        if volume.is_snapshot_completed(dryrun):
+            logging.debug("Snapshot complete: %s of volume %s)", volume.new_snapshot_id, volume.id)
             break
         else:
-            logging.info("Sleeping: %s for volume %s is pending (multiplier: %s)", m_volume.new_snapshot_id, m_volume.id, m_multiplier)
-            time.sleep(.1 * m_multiplier)
-            m_multiplier *= 2
-            if (m_multiplier > 2**15):
+            logging.info("Sleeping: %s for volume %s is pending (multiplier: %s)", volume.new_snapshot_id, volume.id, multiplier)
+            time.sleep(.1 * multiplier)
+            multiplier *= 2
+            if (multiplier > 2**15):
                 logging.info("Snapshot pending long time, skipping")
                 break
 
-if not m_send_email:
+if not send_email:
     exit()
 
-m_tmp_text =''
-for m_profile_name in m_profiles:
+tmp_text =''
+for profile_name in profiles:
 
     # stats for volumes
-    m_v_snapshots_total = [v for v in m_volumes_needing_snapshot
-        if ( v.profile == m_profile_name ) ]
-    m_v_snapshots_complete = [v for v in m_volumes_needing_snapshot
-        if ( v.get_new_snapshot_state(m_dryrun) == 'completed' and v.profile == m_profile_name ) ]
-    m_v_snapshots_pending = [v for v in m_volumes_needing_snapshot
-        if (v.get_new_snapshot_state(m_dryrun) == 'pending' and v.profile == m_profile_name )]
-    m_v_snapshots_error = [v for v in m_volumes_needing_snapshot
-        if (v.get_new_snapshot_state(m_dryrun) == 'error' and v.profile == m_profile_name )]
+    v_snapshots_total = [v for v in volumes_needing_snapshot
+        if ( v.profile == profile_name ) ]
+    v_snapshots_complete = [v for v in volumes_needing_snapshot
+        if ( v.get_new_snapshot_state(dryrun) == 'completed' and v.profile == profile_name ) ]
+    v_snapshots_pending = [v for v in volumes_needing_snapshot
+        if (v.get_new_snapshot_state(dryrun) == 'pending' and v.profile == profile_name )]
+    v_snapshots_error = [v for v in volumes_needing_snapshot
+        if (v.get_new_snapshot_state(dryrun) == 'error' and v.profile == profile_name )]
 
-    m_tmp_text += '<h2>' + m_profile_name + '</h2>' + "\n"
+    tmp_text += '<h2>' + profile_name + '</h2>' + "\n"
 
-    m_tmp_text += "Volumes backed up: {}/{} <br />\n".format(len(m_v_snapshots_complete), (len(m_v_snapshots_total)))
-    m_tmp_text += "Volumes pending: {} <br />\n".format(len(m_v_snapshots_pending))
-    m_tmp_text += "Volumes failed: {} <br />\n".format((len(m_v_snapshots_error)))
+    tmp_text += "Volumes backed up: {}/{} <br />\n".format(len(v_snapshots_complete), (len(v_snapshots_total)))
+    tmp_text += "Volumes pending: {} <br />\n".format(len(v_snapshots_pending))
+    tmp_text += "Volumes failed: {} <br />\n".format((len(v_snapshots_error)))
 
-    for v in m_v_snapshots_error:
-        m_tmp_text += "{} | {} | Snapshot failed.    <br />\n".format(v.fetch_instance_id(), v.id)
+    for v in v_snapshots_error:
+        tmp_text += "{} | {} | Snapshot failed.    <br />\n".format(v.fetch_instance_id(), v.id)
 
-    m_tmp_text += "\n\n\n\n"
+    tmp_text += "\n\n\n\n"
 
 # send email report
 
-m_text = ''
-if m_dryrun: m_text += '<h1>DRY RUN!</h1>'
-m_text += '<p>' + m_tmp_text + '<br />'
+text = ''
+if dryrun: text += '<h1>DRY RUN!</h1>'
+text += '<p>' + tmp_text + '<br />'
 
-m_template_raw = '''
+template_raw = '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -213,24 +213,24 @@ m_template_raw = '''
 </head>
 <body>
     <h1>Volume/Snapshot Report</h1>
-    {{ m_string }}
+    {{ string }}
 </body>
 </html>'''
 
-m_template = Template(m_template_raw)
-m_html = m_template.render(m_string = m_text)
+template = Template(template_raw)
+html = template.render(string = text)
 
 
 logging.info("Sending email report")
 
 p_subject = 'Volumes/Snapshot report'
 p_email_attrs = {
-    'email_type': m_config['general']['email_type'],
-    'email_to': m_config['general']['sa_recipients'],
-    'email_from': m_config['general']['email_from'],
+    'email_type': config['general']['email_type'],
+    'email_to': config['general']['sa_recipients'],
+    'email_from': config['general']['email_from'],
     'subject': p_subject,
-    'html': m_html,
-    'text': m_text,
+    'html': html,
+    'text': text,
 }
 Notification('email', p_email_attrs)
 

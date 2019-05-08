@@ -10,7 +10,7 @@ class Emailv2:
 
     debug = False
 
-    #def __init__(self, m_ses_profile, m_subject, m_html, m_text, m_email_from, m_email_to):
+    #def __init__(self, ses_profile, subject, html, text, email_from, email_to):
     def __init__(self, email_attrs, email_type = ''):
 
         #pp.pprint(email_attrs)
@@ -30,10 +30,10 @@ class Emailv2:
         if 'text' in self.attrs:
             self.body.update({'Text': { 'Charset': 'UTF-8', 'Data': self.attrs['text'], }})
 
-        m_session = boto3.Session(profile_name = self.attrs['ses_profile'])
-        m_client = m_session.client('ses')
+        session = boto3.Session(profile_name = self.attrs['ses_profile'])
+        client = session.client('ses')
 
-        m_response = m_client.send_email(
+        response = client.send_email(
             Source = self.attrs['email_from'],
             Destination = { 'ToAddresses': self.attrs['email_to'] },
             Message = {
@@ -54,10 +54,10 @@ class Emailv2:
         if 'text' in self.attrs:
             message.Body = self.attrs['text']
 
-        m_smtp_server = self.attrs['smtp_server'] if ('smtp_server' in self.attrs) else 'localhost'
-        if 'smtp_port' in self.attrs: m_smtp_server = m_smtp_server + ':' + self.attrs['smtp_port']
+        smtp_server = self.attrs['smtp_server'] if ('smtp_server' in self.attrs) else 'localhost'
+        if 'smtp_port' in self.attrs: smtp_server = smtp_server + ':' + self.attrs['smtp_port']
 
-        sender = Mailer(m_smtp_server)
+        sender = Mailer(smtp_server)
         try:
             sender.send(message)
         except:
