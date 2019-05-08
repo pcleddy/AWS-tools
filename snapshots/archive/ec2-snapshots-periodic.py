@@ -179,22 +179,22 @@ tmp_text =''
 for profile_name in profiles:
 
     # stats for volumes
-    v_snapshots_total = [v for v in volumes_needing_snapshot
+    snapshots_total = [v for v in volumes_needing_snapshot
         if ( v.profile == profile_name ) ]
-    v_snapshots_complete = [v for v in volumes_needing_snapshot
+    snapshots_complete = [v for v in volumes_needing_snapshot
         if ( v.get_new_snapshot_state(dryrun) == 'completed' and v.profile == profile_name ) ]
-    v_snapshots_pending = [v for v in volumes_needing_snapshot
+    snapshots_pending = [v for v in volumes_needing_snapshot
         if (v.get_new_snapshot_state(dryrun) == 'pending' and v.profile == profile_name )]
-    v_snapshots_error = [v for v in volumes_needing_snapshot
+    snapshots_error = [v for v in volumes_needing_snapshot
         if (v.get_new_snapshot_state(dryrun) == 'error' and v.profile == profile_name )]
 
     tmp_text += '<h2>' + profile_name + '</h2>' + "\n"
 
-    tmp_text += "Volumes backed up: {}/{} <br />\n".format(len(v_snapshots_complete), (len(v_snapshots_total)))
-    tmp_text += "Volumes pending: {} <br />\n".format(len(v_snapshots_pending))
-    tmp_text += "Volumes failed: {} <br />\n".format((len(v_snapshots_error)))
+    tmp_text += "Volumes backed up: {}/{} <br />\n".format(len(snapshots_complete), (len(snapshots_total)))
+    tmp_text += "Volumes pending: {} <br />\n".format(len(snapshots_pending))
+    tmp_text += "Volumes failed: {} <br />\n".format((len(snapshots_error)))
 
-    for v in v_snapshots_error:
+    for v in snapshots_error:
         tmp_text += "{} | {} | Snapshot failed.    <br />\n".format(v.fetch_instance_id(), v.id)
 
     tmp_text += "\n\n\n\n"
@@ -223,16 +223,16 @@ html = template.render(string = text)
 
 logging.info("Sending email report")
 
-p_subject = 'Volumes/Snapshot report'
-p_email_attrs = {
+subject = 'Volumes/Snapshot report'
+email_attrs = {
     'email_type': config['general']['email_type'],
     'email_to': config['general']['sa_recipients'],
     'email_from': config['general']['email_from'],
-    'subject': p_subject,
+    'subject': subject,
     'html': html,
     'text': text,
 }
-Notification('email', p_email_attrs)
+Notification('email', email_attrs)
 
 
 # END

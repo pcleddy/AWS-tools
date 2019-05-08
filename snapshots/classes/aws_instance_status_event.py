@@ -23,9 +23,9 @@ class AWSInstanceStatusEvent(object):
 
     def set_event_saserver_details(self, servers):
         logging.info('START: set_event_saserver_details')
-        p_server_details = servers.get_saserver_details()
-        if ( self._instance_id in p_server_details.keys() ):
-            self._server = p_server_details[self._instance_id]
+        server_details = servers.get_saserver_details()
+        if ( self._instance_id in server_details.keys() ):
+            self._server = server_details[self._instance_id]
             logging.info('AWSInstanceStatusEvent: set_event_saserver_details: Found server: ' + str(self._server))
         else:
             self._server = None
@@ -45,8 +45,8 @@ class AWSInstanceStatusEvent(object):
         return self._digest
 
     def set_is_new(self, digests):
-        p_last_run_digests = digests.get_last_run_digests()
-        if ( self._digest in p_last_run_digests ):
+        last_run_digests = digests.get_last_run_digests()
+        if ( self._digest in last_run_digests ):
             self._new_event = False
         else:
             self._new_event = True
@@ -114,20 +114,20 @@ class AWSInstanceStatusEvent(object):
             return self._instance_id
 
     def send_notification_to_owners(self):
-        p_subject='Instance Status Event Notification: ' + self.get_vname()
-        p_email_to = self._config['general']['sa_recipients'] if ( self._config['general']['POC'] ) else self.get_owners_email_addrs()
-        p_email_attrs = {
+        subject='Instance Status Event Notification: ' + self.get_vname()
+        email_to = self._config['general']['sa_recipients'] if ( self._config['general']['POC'] ) else self.get_owners_email_addrs()
+        email_attrs = {
             'email_type': self._config['general']['email_type'],
-            'email_to': p_email_to,
+            'email_to': email_to,
             'email_from': self._config['general']['email_from'],
-            'subject': p_subject,
+            'subject': subject,
             'html': self.get_html_message_to_owners(),
             'text': self.get_text_message_to_owners()
         }
-        Notification('email', p_email_attrs)
+        Notification('email', email_attrs)
 
     def get_html_template(self):
-        p_template_raw = '''
+        template_raw = '''
             <h1>DEV PHASE</h1>
             <p>To: {{ owners_email_addrs_str }}
 
@@ -152,8 +152,8 @@ class AWSInstanceStatusEvent(object):
 
             '''
 
-        p_template = Template(p_template_raw)
-        p_html = p_template.render(
+        template = Template(p_template_raw)
+        html = template.render(
             owners_email_addrs_str = self.get_owners_email_addrs_str(),
             vname = self.get_vname(),
             instance_id = self._instance_id,
@@ -163,7 +163,7 @@ class AWSInstanceStatusEvent(object):
             owners_str = self.get_owners_str(),
         )
 
-        return p_html
+        return html
 
     def get_sa_report_row(self):
         return [self._name, self.get_cog_admin(), self._instance_id, self._event['Description'], self.get_not_before_date_str(), self.get_not_after_date_str(), self.get_owners_str()]

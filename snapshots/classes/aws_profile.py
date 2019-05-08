@@ -66,8 +66,8 @@ class AWSProfile(object):
     def get_current_run_digests(self):
         current_digests = []
         for event in self._events:
-            p_digest = event.get_digest()
-            if p_digest:
+            digest = event.get_digest()
+            if digest:
                 current_digests.append(p_digest)
         return current_digests
 
