@@ -97,7 +97,7 @@ class AWSInstanceStatusEvent(object):
     def set_name(self, name):
         self._name = name
 
-    def get_vm_name(self):
+    def get_vname(self):
         if ( self._server is None ):
             return self._instance_id
         if ( self._server['hostname'] is not None and self._server['domain'] is not None ):
@@ -114,7 +114,7 @@ class AWSInstanceStatusEvent(object):
             return self._instance_id
 
     def send_notification_to_owners(self):
-        p_subject='Instance Status Event Notification: ' + self.get_vm_name()
+        p_subject='Instance Status Event Notification: ' + self.get_vname()
         p_email_to = self._config['general']['sa_recipients'] if ( self._config['general']['POC'] ) else self.get_owners_email_addrs()
         p_email_attrs = {
             'email_type': self._config['general']['email_type'],
@@ -133,12 +133,12 @@ class AWSInstanceStatusEvent(object):
 
             <p>Hello,
 
-            <p>Your Amazon VM, {{ vm_name }}, is scheduled for maintenance by Amazon.  An outage will be incurred during the maintenance window below.  Please reply to this email if you would like to resolve the maintenance at a time before the scheduled maintenance window.  Resolving the maintenance requirement ahead of time will involve powering down your VM, and powering it back on, or merely a reboot, depending on the maintenance type.
+            <p>Your Amazon VM, {{ vname }}, is scheduled for maintenance by Amazon.  An outage will be incurred during the maintenance window below.  Please reply to this email if you would like to resolve the maintenance at a time before the scheduled maintenance window.  Resolving the maintenance requirement ahead of time will involve powering down your VM, and powering it back on, or merely a reboot, depending on the maintenance type.
 
             <p>Maintenance Details:
 
             <ul>
-                <li>VM: {{ vm_name }}
+                <li>VM: {{ vname }}
                 <li>Instance: {{ instance_id }}
                 <li>Description: {{ maintenance_desc }}
                 <li>Maintenance window start time: {{ not_before }}
@@ -155,7 +155,7 @@ class AWSInstanceStatusEvent(object):
         p_template = Template(p_template_raw)
         p_html = p_template.render(
             owners_email_addrs_str = self.get_owners_email_addrs_str(),
-            vm_name = self.get_vm_name(),
+            vname = self.get_vname(),
             instance_id = self._instance_id,
             not_before = self.get_not_before_date_str(),
             not_after = self.get_not_after_date_str(),

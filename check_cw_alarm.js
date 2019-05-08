@@ -14,12 +14,12 @@ var params = {AlarmNames: ['vpcprod-elb_500s_high', ], };
 cloudwatch.describeAlarms(params, function(err, data) {
   if (err) console.log(err, err.stack); // an error occurred
   else {
-    var m_state = data.MetricAlarms[0].StateValue;
-    //m_state = 'INSUFFICIENT_DATA';
-    if ( m_state == 'ALARM' ) {
+    var state = data.MetricAlarms[0].StateValue;
+    //state = 'INSUFFICIENT_DATA';
+    if ( state == 'ALARM' ) {
         console.log("ALARM TRIGGERED");
         process.exit(2);
-    } else if ( m_state == 'INSUFFICIENT_DATA' ) {
+    } else if ( state == 'INSUFFICIENT_DATA' ) {
         console.log("INSUFFICIENT DATA");
         process.exit(3);
     } else {
