@@ -25,7 +25,7 @@ var redshift_clusters = [
     }
 ]
 
-function f_delete_snapshots(snapshots) {
+function delete_snapshots(snapshots) {
     _.each(snapshots.Snapshots, function (snapshot) {
         var params = { SnapshotIdentifier: snapshot.SnapshotIdentifier, SnapshotClusterIdentifier: snapshot.ClusterIdentifier };
         redshift.deleteClusterSnapshot(params, function(err, data) {
@@ -35,19 +35,19 @@ function f_delete_snapshots(snapshots) {
     })
 }
 
-function f_delete_expired_snapshots(cluster) {
+function delete_expired_snapshots(cluster) {
     var expire_time = moment().subtract(cluster.keep_days, 'days').toISOString()
     var params = { ClusterIdentifier: cluster.name, EndTime: expire_time, SnapshotType: 'manual' };    // config to find expired snapshots
     redshift.describeClusterSnapshots(
         params,
         function(err, snapshots) {
             if (err) winston.info(err, err.stack);
-            else f_delete_snapshots(snapshots)
+            else delete_snapshots(snapshots)
         }
     );
 }
 
-function f_create_snapshot(cluster) {
+function create_snapshot(cluster) {
     var params = { ClusterIdentifier: cluster.name, SnapshotIdentifier: cluster.name + '-' + moment().format("YYYY-MM-DD-HH") };
     redshift.createClusterSnapshot(params, function(err, data) {
         if (err) winston.info(err, err.stack);
@@ -55,7 +55,7 @@ function f_create_snapshot(cluster) {
     });
 }
 
-function f_create_daily_snapshot(cluster) {
+function create_daily_snapshot(cluster) {
     // find snapshots less than 1 day old, and if none exist, create new, daily snapshot
     creation_date = moment().subtract(1, 'days').toISOString()
     var params = { ClusterIdentifier: cluster.name, StartTime: creation_date, SnapshotType: 'manual' };
@@ -67,7 +67,7 @@ function f_create_daily_snapshot(cluster) {
                 // no daily backup, so make one
                 if ( snapshots.Snapshots.length == 0 ) {
                     winston.info('No daily backup')
-                    f_create_snapshot(cluster)
+                    create_snapshot(cluster)
                 // daily backup exists, so list
                 } else {
                     winston.info('Found daily backup')
@@ -86,7 +86,7 @@ function f_create_daily_snapshot(cluster) {
 _.each(
     redshift_clusters,
     function (cluster) {
-        f_delete_expired_snapshots(cluster)
-        f_create_daily_snapshot(cluster)
+        delete_expired_snapshots(cluster)
+        create_daily_snapshot(cluster)
     }
 )

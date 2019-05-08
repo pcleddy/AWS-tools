@@ -25,7 +25,7 @@ var rds_instances = [
     }
 ]
 
-function f_delete_snapshots(snapshots) {
+function delete_snapshots(snapshots) {
     _.each(snapshots, function (snapshot) {
         var params = { DBSnapshotIdentifier: snapshot.DBSnapshotIdentifier };
         rds.deleteDBSnapshot(params, function(err, data) {
@@ -35,7 +35,7 @@ function f_delete_snapshots(snapshots) {
     })
 }
 
-function f_delete_expired_snapshots(inst) {
+function delete_expired_snapshots(inst) {
     var expire_time = moment().subtract(inst.keep_days, 'minutes').toISOString()
     var params = { DBInstanceIdentifier: inst.name, SnapshotType: 'manual' };    // config to find expired snapshots
     rds.describeDBSnapshots(
@@ -44,12 +44,12 @@ function f_delete_expired_snapshots(inst) {
             if (err) winston.info(err, err.stack);
             else {
                 var expired = _.filter(snapshots.DBSnapshots, function(snapshot){ return moment(snapshot.SnapshotCreateTime).isBefore(moment().subtract(inst.keep_days, 'days')); });
-                f_delete_snapshots(expired)
+                delete_snapshots(expired)
             }
         }
     );
 }
-function f_create_snapshot(inst) {
+function create_snapshot(inst) {
     var params = { DBInstanceIdentifier: inst.name, DBSnapshotIdentifier: inst.name + '-' + moment().format("YYYY-MM-DD-HH-mm") };
     rds.createDBSnapshot(params, function(err, data) {
         if (err) winston.info(err, err.stack);
@@ -57,7 +57,7 @@ function f_create_snapshot(inst) {
     });
 }
 
-function f_create_daily_snapshot(inst) {
+function create_daily_snapshot(inst) {
     // find snapshots less than 1 day old, and if none exist, create new, daily snapshot
     var params = { DBInstanceIdentifier: inst.name, SnapshotType: 'manual' };
     //console.log(params)
@@ -70,7 +70,7 @@ function f_create_daily_snapshot(inst) {
                 // no daily backup, so make one 
                 if ( dailies == 0 ) {
                     winston.info('No daily backup')
-                    f_create_snapshot(inst)
+                    create_snapshot(inst)
                 // daily backup exists, so list
                 } else {
                     winston.info('Found daily backup')
@@ -89,7 +89,7 @@ function f_create_daily_snapshot(inst) {
 _.each(
     rds_instances,
     function (inst) {
-        f_delete_expired_snapshots(inst)
-        f_create_daily_snapshot(inst)
+        delete_expired_snapshots(inst)
+        create_daily_snapshot(inst)
     }
 )

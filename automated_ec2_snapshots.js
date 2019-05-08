@@ -26,7 +26,7 @@ var instances = [
 ]
 //winston.info (instances)
 
-function f_delete_ami_snapshot(image_id) {
+function delete_ami_snapshot(image_id) {
     // delete image
     var params = { ImageId: image_id, DryRun: false };
     ec2.deregisterImage(
@@ -38,7 +38,7 @@ function f_delete_ami_snapshot(image_id) {
     );
 }
 
-function f_create_ami_snapshot(id, name) {
+function create_ami_snapshot(id, name) {
     var params = { InstanceId: id, Name: name + '_' + now, DryRun: false, NoReboot: true };
     ec2.createImage(
         params,
@@ -75,7 +75,7 @@ _.each(
                             var expired = moment(image.CreationDate).isBefore(moment().subtract(inst.keep_days, 'days'))
                             if ( expired ) {
                                 // delete image
-                                f_delete_ami_snapshot(image.ImageId)
+                                delete_ami_snapshot(image.ImageId)
                             }
                         }
                     )
@@ -83,7 +83,7 @@ _.each(
                 }
                 // do backup
                 if ( daily_done == false) {
-                    f_create_ami_snapshot(inst.id, inst.name)
+                    create_ami_snapshot(inst.id, inst.name)
                 }
             }
         );
