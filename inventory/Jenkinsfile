@@ -6,7 +6,7 @@ pipeline {
 
   options {
     ansiColor('xterm')
-    withAWS(credentials:'AWS Access Key - Jenkins Service User - nwea-master')
+    withAWS(credentials:'AWS Access Key - Jenkins Service User - master')
   }
 
   agent { docker { image 'node:latest' } }
