@@ -1,49 +1,31 @@
 const config = require('../config');
-
 const AWS = require('aws-sdk');
-const { Client } = require('@elastic/elasticsearch')
 
 class AwsService {
   constructor(attrs) {
     this.debug = true;
     this.show_ids = true;
-    this.push_to_elk = config.elk.push_to_elk;
-    this.elk_host = config.elk.host;
-    this.elk_port = config.elk.port;
-    if (this.push_to_elk) {
-      if (config.elk.local) { this.elk_host = 'localhost' };
-      this.elk_conn = `http://${this.elk_host}:${this.elk_port}`;
-      this.elk_client = new Client({ node: this.elk_conn })
-    }
     this.service = attrs.service;
     this.profile = attrs.profile;
-    this.region = attrs.region;
-    this.aws_acct_id = attrs.aws_acct_id
-    this.inventory = []
+    this.region = {};
+    this.region.name = attrs.region.name;
+    this.region.type = attrs.region.type;
+    this.aws_acct_id = attrs.aws_acct_id;
+    this.inventory = [];
     this.set_client();
     this.set_service_config();
-    this.get_resources()
-    .then( data => {
-      let ids = this.get_inventory_ids();
-      if (this.show_ids && ids.length) {
-        console.log(`\nProfile/Region: ${this.profile}/${this.region}`)
-        console.log('Ids: ', ids, "\n")
-      }
-    }).catch( (e) => console.log('Profile error: ', this.profile, e))
   }
 
   set_client() {
-    AWS.config.credentials = new AWS.SharedIniFileCredentials({profile: this.profile});
+    AWS.config.credentials = new AWS.SharedIniFileCredentials({profile: this.profile, filename: './aws_creds'});
     let service_op = this.service.toUpperCase()  // covers most cases
     if ( config.service_map[this.service] ) { service_op = config.service_map[this.service] }
-    this.client = new AWS[service_op]({profile: this.profile, region: this.region});
+    this.client = new AWS[service_op]({profile: this.profile, region: this.region.name});
   }
 
   async call_api(client, call, args, fetch) {
-    if (this.debug) {process.stdout.write('1')};
     const resp = await client[call](args).promise()
     const data = await fetch(resp);
-    if (this.debug) {process.stdout.write('2')};
     return data;
   }
 
@@ -54,7 +36,6 @@ class AwsService {
         data => {
           for (let item of data) {
             if ( resource_type.default && item[resource_type.default] == 'default' ) {
-              // if (this.debug) {console.log(`\nSkipping default resource: ${resource_type.api_method}`)}
               continue;
             }
             if (resource_type.id_field) {
@@ -62,40 +43,20 @@ class AwsService {
             } else {
               item = { 'id': item }
             }
-            item.index = resource_type.index;
+            item.index = resource_type.index + '-' + this.region.type;
             item.LastSeenInAWS = new Date().toISOString();
             item.AwsAcctId = this.aws_acct_id;
             item.AwsProfile = this.profile;
-            item.AwsRegion = this.region;
+            item.AwsRegion = this.region.name;
+            item.AwsRegionType = this.region.type;
             item.AwsService = this.service;
             item.AwsResourceType = resource_type.type;
             this.inventory.push(item);
-            // console.log(item)
-            if (this.push_to_elk) { this.push2elk(item); };
           }
         }
       )
     }
     return this.inventory;
-  }
-
-  get_inventory_ids() {
-    this.inventory_ids = []
-    for (let item of this.inventory) {
-      this.inventory_ids.push(item.id);
-    }
-    return this.inventory_ids;
-  }
-
-  push2elk(item) {
-    if (this.debug) { process.stdout.write('3'); }
-    const result = this.elk_client.index({
-      index: item.index,
-      id: item.id,
-      body: item,
-    })
-    if (this.debug) { process.stdout.write('4'); }
-    return result
   }
 
   set_service_config() {
@@ -237,6 +198,55 @@ class AwsService {
           },
         ]
         break;
+      case 'sns':
+        this.resource_types = [
+          {
+            'type': 'subscriptions',
+            'api_method': 'listSubscriptions',
+            'id_field': 'SubscriptionArn',
+            'index': 'aws-sns-subscriptions',
+            'args': {},
+            fetch(data) { return data.Subscriptions },
+          },
+        ]
+        break;
+      case 'redshift':
+        this.resource_types = [
+          {
+            'type': 'cluster',
+            'api_method': 'describeClusters',
+            'id_field': 'ClusterIdentifier',
+            'index': 'aws-redshift-cluster',
+            'args': {},
+            fetch(data) { return data.Clusters },
+          },
+        ]
+        break;
+      case 's3':
+        this.resource_types = [
+          {
+            'type': 'bucket',
+            'api_method': 'listBuckets',
+            'id_field': 'Name',
+            'index': 'aws-s3-bucket',
+            'args': {},
+            fetch(data) { return data.Buckets },
+          },
+        ]
+        break;
+      case 'cloudfront':
+        this.resource_types = [
+          {
+            'type': 'item',
+            'api_method': 'listDistributions',
+            'id_field': 'Id',
+            'index': 'aws-cloudfront-item',
+            'args': {},
+            fetch(data) { return data.DistributionList.Items },
+          },
+        ]
+        break;
+
     }
   }
 }
